@@ -30,7 +30,19 @@ alreadyLogin = False
 bot = None
 qrImgLable = None
 cueLable=None
+autoReplyMap={}
 
+def addSbAutoReply(userId):
+    global autoReplyMap
+    autoReplyMap[userId]=True
+
+def removeSbAutoReplay(userId):
+    global autoReplyMap
+    autoReplyMap[userId] = False
+
+def sbIsNeddAutoReplay(userId):
+    global autoReplyMap
+    return autoReplyMap[userId]
 
 def writeQR(picDir, qrStorage):
     with open(picDir, 'wb') as f:
@@ -109,7 +121,7 @@ def autoInviteGroup():
         my_group = bot.groups().search(varLable.get())[0]
         print(varle)
     except Exception:
-        tk.messagebox.showinfo(title='Warning', message='Please choose one group! ')
+        tk.messagebox.showinfo(title='Warning', message='No groups were selected.')
         return
 
 def autoReplyCommand():
@@ -150,12 +162,12 @@ def showTheGroupsList():
     GrouplistBox.grid(column=0, row=0, rowspan=2, padx=5, pady=5, sticky=tk.E)
 
     varLable = tk.StringVar()  # Create a variables
-    varLable.set("Plase choose one option.")
+    varLable.set("No groups were selected..")
     selectGroupLable = tk.Label(groupsTab, bg='white', textvariable=varLable)
     selectGroupLable.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
 
     comment = tk.StringVar()  # 定义变量
-    comment.set('Please input comment')  # 变量赋值
+    comment.set('Please input comment.')  # 变量赋值
     inputCommentBox = tk.Entry(groupsTab, textvariable=comment)
     inputCommentBox.grid(column=1, row=1, padx=5, pady=5, sticky=tk.W)
 
@@ -233,6 +245,23 @@ def weChatBot(wcache_path, wconsole_qr, wqr_path, wqr_callback, wlogin_callback,
 
         if not openAutoReply:
             return
+
+        if "我找萌萌" == msg.text:
+            addSbAutoReply(msg.chat.puid)
+
+        if "不聊了" == msg.text:
+            removeSbAutoReplay(msg.chat.puid)
+
+        needReplay = False
+        try:
+            needReplay = sbIsNeddAutoReplay(msg.chat.puid)
+        except Exception:
+            needReplay = False
+
+        if not needReplay:
+            msg.reply("本人不在，回复”我找萌萌“会有萌萌同学陪你聊天，回复”不聊了“即可关闭。")
+            return
+
         if isinstance(msg.chat, Group):
             return
         if isinstance(msg.chat, MP):
