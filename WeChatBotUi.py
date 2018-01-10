@@ -3,6 +3,7 @@
 
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import ttk
 import threading
 from time import ctime, sleep
 from wxpy import *
@@ -21,36 +22,45 @@ def closeProcess(*e):
 
 window = tk.Tk()
 window.title('WeChatBot')
-window.geometry('450x600')
+# window.geometry('450x600')
 window.protocol("WM_DELETE_WINDOW", closeProcess)
 
 alreadyDraw = False
 alreadyLogin = False
 bot = None
+qrImgLable = None
+cueLable=None
 
 
 def writeQR(picDir, qrStorage):
     with open(picDir, 'wb') as f:
         f.write(qrStorage)
 
-def qrPath( ):
+
+def qrPath():
     picDir = sys.path[0].replace('\\', '/') + '/images/'
     if not os.path.exists(picDir):
         os.makedirs(picDir)
     picDir += 'qr.png'
     return picDir
 
+
 def drawWechatWindow(qrcodes):
     print("drawWechatWindow......")
     global alreadyLogin
+    global qrImgLable
+    global cueLable
     while not alreadyLogin:
         picDir = qrPath()
 
         writeQR(picDir, qrcodes)
         image_file = tk.PhotoImage(file=picDir)
-        tk.Label(window, image=image_file).place(x=0, y=0)
 
-        tk.Label(window, text="Scan the QR code.").place(x=165, y=460)
+        qrImgLable = tk.Label(window, image=image_file)
+        qrImgLable.place(x=0, y=0)
+
+        cueLable = tk.Label(window, text="Scan the QR code.")
+        cueLable.place(x=165, y=460)
         sleep(1)
 
 
@@ -75,55 +85,25 @@ def loginSuccess():
     print("loging success")
 
 
-lb = None
+GrouplistBox = None
 varLable = None
 openAutoJoinGroups = False
+openAutoReply = False
 comment = None
+groupsTab=None
+friendsTab=None
 
-
-def drawGroups():
-    global bot
-    global lb
-    global varLable
-    global comment
-
-    lb = tk.Listbox(window)
-    lb.place(x=0, y=0)
-    for group in bot.groups():
-        try:
-            lb.insert('end', group.name)
-        except Exception:
-            lb.insert('end', 'Unknow')
-    lb.pack()
-
-    varLable = tk.StringVar()  # 创建变量
-    varLable.set("Plase choose one option.")
-    l = tk.Label(window, bg='yellow', width=50, textvariable=varLable)
-    l.pack()
-
-    b1 = tk.Button(window, text='print selection', width=15,
-                   height=2, command=comfirm)
-    b1.place(x=0, y=100)
-    b1.pack()
-
-    comment = tk.StringVar()  # 定义变量
-    comment.set('Please input comment')  # 变量赋值
-    inputCommentBox = tk.Entry(window, textvariable=comment)
-    inputCommentBox.place(x=0, y=150)
-    inputCommentBox.pack()
-
-
-def comfirm():
+def autoInviteGroup():
     """
     Comfirm the lable choose
     :return:
     """
-    global lb
+    global GrouplistBox
     global varLable
     global openAutoJoinGroups
 
     try:
-        varle = lb.get(lb.curselection())
+        varle = GrouplistBox.get(GrouplistBox.curselection())
         varLable.set(varle)
         openAutoJoinGroups = True
         my_group = bot.groups().search(varLable.get())[0]
@@ -131,6 +111,96 @@ def comfirm():
     except Exception:
         tk.messagebox.showinfo(title='Warning', message='Please choose one group! ')
         return
+
+def autoReplyCommand():
+    global openAutoReply
+    if openAutoReply:
+        openAutoReply = False
+        tk.messagebox.showinfo(title='Hint', message='Auto Reply is close ')
+    else:
+        openAutoReply = True
+        tk.messagebox.showinfo(title='Hint', message='Auto Reply is open ')
+
+
+
+def drawTheTab():
+    global groupsTab
+    global friendsTab
+    tabControl = ttk.Notebook(window)  # Create Tab Control
+    groupsTab = ttk.Frame(tabControl)  # Create a tab
+    tabControl.add(groupsTab, text='Groups')  # Add the tab
+    tabControl.pack(expand=1, fill="both")  # Pack to make visible
+    friendsTab = ttk.Frame(tabControl)  # Add a second tab
+    tabControl.add(friendsTab, text='Friends')  # Make second tab visible
+
+def showTheGroupsList():
+    """
+    Groups list
+    """
+    global groupsTab
+    global friendsTab
+    global bot
+    GrouplistBox = tk.Listbox(groupsTab)
+    GrouplistBox.place(x=0, y=0)
+    for group in bot.groups():
+        try:
+            GrouplistBox.insert('end', group.name)
+        except Exception:
+            GrouplistBox.insert('end', 'Unknow')
+    GrouplistBox.grid(column=0, row=0, rowspan=2, padx=5, pady=5, sticky=tk.E)
+
+    varLable = tk.StringVar()  # Create a variables
+    varLable.set("Plase choose one option.")
+    selectGroupLable = tk.Label(groupsTab, bg='white', textvariable=varLable)
+    selectGroupLable.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
+
+    comment = tk.StringVar()  # 定义变量
+    comment.set('Please input comment')  # 变量赋值
+    inputCommentBox = tk.Entry(groupsTab, textvariable=comment)
+    inputCommentBox.grid(column=1, row=1, padx=5, pady=5, sticky=tk.W)
+
+    groupAutoInviteButton = tk.Button(groupsTab, text='Group auto invite', width=15, height=2, command=autoInviteGroup)
+    groupAutoInviteButton.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
+
+    autoReplyButton = tk.Button(groupsTab, text='auto reply', width=15, height=2, command=autoReplyCommand)
+    autoReplyButton.grid(column=2, row=1, padx=5, pady=5, sticky=tk.W)
+
+def showFriendsList():
+    """
+    Friendss list
+    """
+    global groupsTab
+    global friendsTab
+    friendMonty = ttk.LabelFrame(friendsTab, text='WeChat Friends ')
+    friendMonty.grid(column=0, row=0, padx=8, pady=4)
+    fridenlistBox = tk.Listbox(friendMonty)
+    fridenlistBox.place(x=0, y=0)
+    for group in ["sun", "fofr", "serio", "peter"]:
+        try:
+            fridenlistBox.insert('end', group)
+        except Exception:
+            fridenlistBox.insert('end', 'Unknow')
+    fridenlistBox.pack()
+
+def center_window(w=300, h=200):
+    # get screen width and height
+    ws = window.winfo_screenwidth()
+    hs = window.winfo_screenheight()
+    # calculate position x, y
+    x = (ws/2) - (w/2)
+    y = (hs/2) - (h/2)
+    window.geometry('%dx%d+%d+%d' % (w, h, x, y))
+
+def drawContextBoard():
+    global qrImgLable
+    global cueLable
+
+    qrImgLable.pack_forget()
+    cueLable.pack_forget()
+
+    drawTheTab()
+    showTheGroupsList()
+    showFriendsList()
 
 
 def postChatBot(message, userId):
@@ -152,13 +222,17 @@ def weChatBot(wcache_path, wconsole_qr, wqr_path, wqr_callback, wlogin_callback,
     bot = Bot(cache_path=None, console_qr=False, qr_path=None, qr_callback=qrWindow, login_callback=loginSuccess,
               logout_callback=None)
     bot.enable_puid('wxpy_puid.pkl')
-    drawGroups()
+    drawContextBoard()
 
     @bot.register(User)
     def autoReply(msg):
         """
         :type msg: object
         """
+        global openAutoReply
+
+        if not openAutoReply:
+            return
         if isinstance(msg.chat, Group):
             return
         if isinstance(msg.chat, MP):
@@ -170,7 +244,7 @@ def weChatBot(wcache_path, wconsole_qr, wqr_path, wqr_callback, wlogin_callback,
             if None == msg.text:
                 msg.reply("萌萌：看不懂，说的啥意思啊！")
                 return
-            msg.reply("萌萌："+postChatBot(msg.text, msg.chat.puid))
+            msg.reply("萌萌：" + postChatBot(msg.text, msg.chat.puid))
         except Exception:
             msg.reply("萌萌出错了，你可以试着问别的问题")
 
@@ -195,5 +269,5 @@ def weChatBot(wcache_path, wconsole_qr, wqr_path, wqr_callback, wlogin_callback,
 
 
 startThread(weChatBot, (None, False, None, qrWindow, loginSuccess, None))
-
+center_window(w=450, h=450)
 window.mainloop()
